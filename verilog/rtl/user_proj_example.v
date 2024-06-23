@@ -36,121 +36,105 @@
  */
 
 module user_proj_example #(
-    parameter BITS = 16
-)(
+    parameter   [31:0]  NUM    = 32'h3000_0000
+    ) (
 `ifdef USE_POWER_PINS
     inout vccd1,	// User area 1 1.8V supply
     inout vssd1,	// User area 1 digital ground
 `endif
+    input wire          clk,
+    input wire          reset,
 
-    // Wishbone Slave ports (WB MI A)
-    input wb_clk_i,
-    input wb_rst_i,
+    // wishbone slave ports
     input wbs_stb_i,
     input wbs_cyc_i,
     input wbs_we_i,
     input [3:0] wbs_sel_i,
     input [31:0] wbs_dat_i,
     input [31:0] wbs_adr_i,
-    output wbs_ack_o,
+    output reg wbs_ack_o,
     output [31:0] wbs_dat_o,
 
-    // Logic Analyzer Signals
-    input  [127:0] la_data_in,
-    output [127:0] la_data_out,
-    input  [127:0] la_oenb,
-
-    // IOs
-    input  [BITS-1:0] io_in,
-    output [BITS-1:0] io_out,
-    output [BITS-1:0] io_oeb,
-
-    // IRQ
-    output [2:0] irq
+    output reg [7:0]svsg,
+    output [7:0] io_oeb
+   
 );
-    wire clk;
-    wire rst;
+    reg [3:0]BCD;
+    wire [3:0]wdata;
+    reg [7:0]rdata;
+    wire valid ;
+    
+    assign wdata = wbs_dat_i[3:0];
+    assign wbs_dat_o = {{24{1'b0}},svsg};
+    assign valid = wbs_cyc_i && wbs_stb_i;
+    assign io_oeb = 8'd0;
 
-    wire [BITS-1:0] rdata; 
-    wire [BITS-1:0] wdata;
-    wire [BITS-1:0] count;
+//wishbone write
 
-    wire valid;
-    wire [3:0] wstrb;
-    wire [BITS-1:0] la_write;
-
-    // WB MI A
-    assign valid = wbs_cyc_i && wbs_stb_i; 
-    assign wstrb = wbs_sel_i & {4{wbs_we_i}};
-    assign wbs_dat_o = {{(32-BITS){1'b0}}, rdata};
-    assign wdata = wbs_dat_i[BITS-1:0];
-
-    // IO
-    assign io_out = count;
-    assign io_oeb = {(BITS){rst}};
-
-    // IRQ
-    assign irq = 3'b000;	// Unused
-
-    // LA
-    assign la_data_out = {{(128-BITS){1'b0}}, count};
-    // Assuming LA probes [63:32] are for controlling the count register  
-    assign la_write = ~la_oenb[63:64-BITS] & ~{BITS{valid}};
-    // Assuming LA probes [65:64] are for controlling the count clk & reset  
-    assign clk = (~la_oenb[64]) ? la_data_in[64]: wb_clk_i;
-    assign rst = (~la_oenb[65]) ? la_data_in[65]: wb_rst_i;
-
-    counter #(
-        .BITS(BITS)
-    ) counter(
-        .clk(clk),
-        .reset(rst),
-        .ready(wbs_ack_o),
-        .valid(valid),
-        .rdata(rdata),
-        .wdata(wbs_dat_i[BITS-1:0]),
-        .wstrb(wstrb),
-        .la_write(la_write),
-        .la_input(la_data_in[63:64-BITS]),
-        .count(count)
-    );
-
-endmodule
-
-module counter #(
-    parameter BITS = 16
-)(
-    input clk,
-    input reset,
-    input valid,
-    input [3:0] wstrb,
-    input [BITS-1:0] wdata,
-    input [BITS-1:0] la_write,
-    input [BITS-1:0] la_input,
-    output reg ready,
-    output reg [BITS-1:0] rdata,
-    output reg [BITS-1:0] count
-);
-
-    always @(posedge clk) begin
-        if (reset) begin
-            count <= 1'b0;
-            ready <= 1'b0;
-        end else begin
-            ready <= 1'b0;
-            if (~|la_write) begin
-                count <= count + 1'b1;
+    always @(posedge clk ) begin
+        if(reset) begin
+          wbs_ack_o <=0;
             end
-            if (valid && !ready) begin
-                ready <= 1'b1;
-                rdata <= count;
-                if (wstrb[0]) count[7:0]   <= wdata[7:0];
-                if (wstrb[1]) count[15:8]  <= wdata[15:8];
-            end else if (|la_write) begin
-                count <= la_write & la_input;
+        else begin 
+            wbs_ack_o <=0;
+            if(valid && wbs_we_i && !wbs_ack_o && (wbs_adr_i == NUM)) begin
+            wbs_ack_o <=1;
+            BCD <= wdata[3:0];
             end
         end
     end
 
+// wishbone read
+
+    always@(posedge clk) begin
+        if (reset) begin
+            wbs_ack_o <=0;
+        end
+        else begin
+        
+        if ( !wbs_we_i && wbs_cyc_i && wbs_stb_i && (wbs_adr_i == NUM) ) begin
+            wbs_ack_o <=1;
+            rdata <= svsg;
+            
+        end
+        end
+    end
+    always@(posedge clk) begin
+        if(reset) begin
+            svsg <= 8'h00;
+        end
+
+        else begin
+            case (BCD)
+                4'b0000:svsg<=8'b11111100;
+                4'b0001:svsg<=8'b01100000;
+                4'b0010:svsg<=8'b11011010;
+                4'b0011:svsg<=8'b11110010;
+                4'b0100:svsg<=8'b01100110;
+                4'b0101:svsg<=8'b10110110;
+                4'b0110:svsg<=8'b10111110;
+                4'b0111:svsg<=8'b11100000;
+                4'b1000:svsg<=8'b11111110;
+                4'b1001:svsg<=8'b11110110;
+
+                default:svsg<=8'b00000000;
+
+               
+            endcase
+        end
+    end
+
+
+ /*  always@(posedge clk) begin
+        if(reset) begin
+            wbs_ack_o = 0;
+        end
+        else if(wbs_stb_i && wbs_cyc_i &&  (wbs_adr_i == NUM  )) begin
+            wbs_ack_o = 1;
+        end
+    end*/
+
+    
 endmodule
+
 `default_nettype wire

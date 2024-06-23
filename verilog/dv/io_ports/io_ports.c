@@ -19,6 +19,8 @@
 #include <defs.h>
 #include <stub.c>
 
+
+#define reg_op      (*(volatile uint32_t*)0x30000000)
 /*
 	IO Test:
 		- Configures MPRJ lower 8-IO pins as outputs
@@ -26,7 +28,7 @@
 */
 
 void main()
-{
+{	int i = 0;
 	/* 
 	IO Control Registers
 	| DM     | VTRIP | SLOW  | AN_POL | AN_SEL | AN_EN | MOD_SEL | INP_DIS | HOLDH | OEB_N | MGMT_EN |
@@ -46,11 +48,11 @@ void main()
 	/* Set up the housekeeping SPI to be connected internally so	*/
 	/* that external pin changes don't affect it.			*/
 
-	// reg_spi_enable = 1;
+	 reg_spi_enable = 1;
 	// reg_spimaster_cs = 0x10001;
 	// reg_spimaster_control = 0x0801;
 
-	// reg_spimaster_control = 0xa002;	// Enable, prescaler = 2,
+	 reg_spimaster_control = 0xa002;	// Enable, prescaler = 2,
                                         // connect to housekeeping SPI
 
 	// Connect the housekeeping SPI to the SPI master
@@ -68,8 +70,20 @@ void main()
 	reg_mprj_io_6 =  GPIO_MODE_USER_STD_OUTPUT;
 	reg_mprj_io_7 =  GPIO_MODE_USER_STD_OUTPUT;
 
+	reg_wb_enable=1;
+
 	/* Apply configuration */
 	reg_mprj_xfer = 1;
 	while (reg_mprj_xfer == 1);
+
+	reg_op = 0;
+	if(reg_op = 2);
+	reg_opp = reg_op;
+	while(i<10){
+		reg_op = i;
+		i++;
+	}
+
+
 }
 

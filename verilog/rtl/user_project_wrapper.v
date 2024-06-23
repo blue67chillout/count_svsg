@@ -87,9 +87,10 @@ user_proj_example mprj (
 	.vccd1(vccd1),	// User area 1 1.8V power
 	.vssd1(vssd1),	// User area 1 digital ground
 `endif
+    // IO Pads
 
-    .wb_clk_i(wb_clk_i),
-    .wb_rst_i(wb_rst_i),
+    .clk(wb_clk_i),
+    .reset(wb_rst_i),
 
     // MGMT SoC Wishbone Slave
 
@@ -102,20 +103,8 @@ user_proj_example mprj (
     .wbs_ack_o(wbs_ack_o),
     .wbs_dat_o(wbs_dat_o),
 
-    // Logic Analyzer
-
-    .la_data_in(la_data_in),
-    .la_data_out(la_data_out),
-    .la_oenb (la_oenb),
-
-    // IO Pads
-
-    .io_in ({io_in[37:30],io_in[7:0]}),
-    .io_out({io_out[37:30],io_out[7:0]}),
-    .io_oeb({io_oeb[37:30],io_oeb[7:0]}),
-
-    // IRQ
-    .irq(user_irq)
+    .svsg(io_out[7:0]),
+    .io_oeb(io_oeb[7:0])
 );
 
 endmodule	// user_project_wrapper

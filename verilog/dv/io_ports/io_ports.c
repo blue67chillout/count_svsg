@@ -77,8 +77,7 @@ void main()
 	while (reg_mprj_xfer == 1);
 
 	reg_op = 0;
-	if(reg_op = 2);
-	reg_opp = reg_op;
+	
 	while(i<10){
 		reg_op = i;
 		i++;
